@@ -9,7 +9,6 @@
 
   <depend>python3-numpy</depend>
   <depend>rosflight_msgs</depend>
-  <depend>rospy</depend>
 
   <export>
     <build_type>ament_python</build_type>
