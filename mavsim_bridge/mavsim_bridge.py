@@ -67,7 +67,7 @@ class MavSimBridge(Node):
         self.waypoints.add(np.array([[1000, 1000, -100]]).T, Va, np.radians(-135), np.inf, 0, 0)
 
         # Create publisher for delta commands
-        self.delta_pub = self.create_publisher(Command, 'command', 1)
+        self.delta_pub = self.create_publisher(Command, '/command', 1)
 
         # Create sensor subscriptions
         self.airspeed_sub = self.create_subscription(Airspeed, '/airspeed', self.airspeed_callback, 1)
