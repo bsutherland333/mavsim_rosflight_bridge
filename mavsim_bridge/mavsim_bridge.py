@@ -3,10 +3,11 @@ import os
 current_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(current_dir, 'mavsim/mavsim_python'))
 
-import rclpy
-from rclpy.node import Node
+from pyproj import Proj, transform
 import numpy as np
 
+import rclpy
+from rclpy.node import Node
 from rosflight_msgs.msg import Airspeed
 from rosflight_msgs.msg import Barometer
 from rosflight_msgs.msg import Command
@@ -23,6 +24,24 @@ from message_types.msg_waypoints import MsgWaypoints
 from message_types.msg_sensors import MsgSensors
 
 
+def ecef_to_ned_matrix(ecef):
+    # Define the projection for ECEF: EPSG:4978
+    # and WGS84 LatLong: EPSG:4326
+    ecef_proj = Proj(proj='geocent', ellps='WGS84', datum='WGS84')
+    latlong_proj = Proj(proj='latlong', ellps='WGS84', datum='WGS84')
+
+    # Convert from ECEF to Geodetic (Latitude, Longitude, Altitude)
+    lon, lat, _ = transform(ecef_proj, latlong_proj, ecef[0], ecef[1], ecef[2], radians=True)
+
+    # Calculate transformation matrix from ECEF to NED
+    matrix = np.array([
+        [-np.sin(lat) * np.cos(lon), -np.sin(lat) * np.sin(lon), np.cos(lat)],
+        [-np.sin(lon), np.cos(lon), 0],
+        [-np.cos(lat) * np.cos(lon), -np.cos(lat) * np.sin(lon), -np.sin(lat)]
+    ])
+    return matrix
+
+
 class MavSimBridge(Node):
     def __init__(self):
         super().__init__('mavsim_bridge')
@@ -30,6 +49,7 @@ class MavSimBridge(Node):
         self.sensors = MsgSensors()
         self.initial_baro = None
         self.initial_ecef = None
+        self.ecef_ned_matrix = None
 
         # initialize elements of the architecture
         self.autopilot = Autopilot(control_timer_period)
@@ -60,7 +80,8 @@ class MavSimBridge(Node):
         self.timer = self.create_timer(control_timer_period, self.timer_callback)
 
     def airspeed_callback(self, msg):
-        self.sensors.diff_pressure = msg.differential_pressure
+        # Uses max since mavsim is not prepared to handle negative values
+        self.sensors.diff_pressure = max(msg.differential_pressure, 0.0)
 
     def barometer_callback(self, msg):
         if self.initial_baro is None:
@@ -70,7 +91,14 @@ class MavSimBridge(Node):
     def gnss_callback(self, msg):
         if self.initial_ecef is None:
             self.initial_ecef = msg.position
-        # TODO: Convert ECEF to NED
+            self.ecef_ned_matrix = ecef_to_ned_matrix(self.initial_ecef)
+        ned = np.dot(self.ecef_ned_matrix, msg.position - self.initial_ecef)
+        ned_vel = np.dot(self.ecef_ned_matrix, msg.velocity)
+        self.sensors.gps_n = ned[0]
+        self.sensors.gps_e = ned[1]
+        self.sensors.gps_h = -ned[2]
+        self.sensors.Vg = np.linalg.norm(ned_vel[0:2])
+        self.sensors.gps_course = np.arctan2(ned_vel[1], ned_vel[0])
 
     def imu_callback(self, msg):
         self.sensors.gyro_x = msg.angular_velocity.x
