@@ -7,8 +7,10 @@
   <maintainer email="bsuther2@byu.edu">Brandon Sutherland</maintainer>
   <license>BSD-3-Clause</license>
 
+  <depend>geometry_msgs</depend>
   <depend>python3-numpy</depend>
   <depend>rosflight_msgs</depend>
+  <depend>sensor_msgs</depend>
 
   <export>
     <build_type>ament_python</build_type>

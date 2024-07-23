@@ -7,7 +7,12 @@ import rclpy
 from rclpy.node import Node
 import numpy as np
 
+from rosflight_msgs.msg import Airspeed
+from rosflight_msgs.msg import Barometer
 from rosflight_msgs.msg import Command
+from rosflight_msgs.msg import GNSS
+from sensor_msgs.msg import Imu
+from sensor_msgs.msg import MagneticField
 
 import parameters.planner_parameters as PLAN
 from controllers.autopilot import Autopilot
@@ -23,6 +28,8 @@ class MavSimBridge(Node):
         super().__init__('mavsim_bridge')
         control_timer_period = 1 / 100.0
         self.sensors = MsgSensors()
+        self.initial_baro = None
+        self.initial_ecef = None
 
         # initialize elements of the architecture
         self.autopilot = Autopilot(control_timer_period)
@@ -43,9 +50,40 @@ class MavSimBridge(Node):
         self.delta_pub = self.create_publisher(Command, 'command', 1)
 
         # Create sensor subscriptions
+        self.airspeed_sub = self.create_subscription(Airspeed, '/airspeed', self.airspeed_callback, 1)
+        self.barometer_sub = self.create_subscription(Barometer, '/barometer', self.barometer_callback, 1)
+        self.gnss_sub = self.create_subscription(GNSS, '/gnss', self.gnss_callback, 1)
+        self.imu_sub = self.create_subscription(Imu, '/imu/data', self.imu_callback, 1)
+        self.mag_sub = self.create_subscription(MagneticField, '/magnetometer', self.mag_callback, 1)
 
         # Create timer for control loop
         self.timer = self.create_timer(control_timer_period, self.timer_callback)
+
+    def airspeed_callback(self, msg):
+        self.sensors.diff_pressure = msg.differential_pressure
+
+    def barometer_callback(self, msg):
+        if self.initial_baro is None:
+            self.initial_baro = msg.pressure
+        self.sensors.abs_pressure = msg.pressure - self.initial_baro
+
+    def gnss_callback(self, msg):
+        if self.initial_ecef is None:
+            self.initial_ecef = msg.position
+        # TODO: Convert ECEF to NED
+
+    def imu_callback(self, msg):
+        self.sensors.gyro_x = msg.angular_velocity.x
+        self.sensors.gyro_y = msg.angular_velocity.y
+        self.sensors.gyro_z = msg.angular_velocity.z
+        self.sensors.accel_x = msg.linear_acceleration.x
+        self.sensors.accel_y = msg.linear_acceleration.y
+        self.sensors.accel_z = msg.linear_acceleration.z
+
+    def mag_callback(self, msg):
+        self.sensors.mag_x = msg.magnetic_field.x
+        self.sensors.mag_y = msg.magnetic_field.y
+        self.sensors.mag_z = msg.magnetic_field.z
 
     def timer_callback(self):
         # Get next set of commands
