@@ -1,3 +1,3 @@
-[submodule "mavsim"]
-	path = mavsim
+[submodule "mavsim_bridge/mavsim"]
+	path = mavsim_bridge/mavsim
 	url = git@github.com:randybeard/mavsim.git

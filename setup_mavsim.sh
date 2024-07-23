@@ -1,10 +1,9 @@
-# Script to setup mavsim_bridge with mavsim source files
+# Script to setup mavsim_bridge with mavsim source files. This needs to be run from the repository root directory.
 
 # Clone mavsim repository
 git submodule update --init
 
-# Copy mavsim source files to mavsim_bridge
-cp -r mavsim/mavsim_python mavsim_bridge/mavsim_python
-
-# Create a __init__.py file in every mavsim directory
-find mavsim_bridge -type d -exec touch {}/__init__.py \;
+# Create a __init__.py file in every mavsim_python directory, necessary for python (and therefore ROS) to recognize
+# the directories as packages
+touch mavsim_bridge/mavsim/__init__.py
+find mavsim_bridge/mavsim/mavsim_python -type d -exec touch {}/__init__.py \;

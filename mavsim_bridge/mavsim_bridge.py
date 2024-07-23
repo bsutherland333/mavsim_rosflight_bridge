@@ -1,9 +1,9 @@
-import rclpy
 import sys
 import os
 current_dir = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(current_dir, 'mavsim_python'))
+sys.path.append(os.path.join(current_dir, 'mavsim/mavsim_python'))
 
+import rclpy
 from rclpy.node import Node
 import numpy as np
 
