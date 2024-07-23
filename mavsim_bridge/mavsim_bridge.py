@@ -17,7 +17,7 @@ from sensor_msgs.msg import MagneticField
 
 import parameters.planner_parameters as PLAN
 from controllers.autopilot import Autopilot
-from estimators.observer import Observer
+from estimators.observer_full import Observer
 from planners.path_follower import PathFollower
 from planners.path_manager import PathManager
 from message_types.msg_waypoints import MsgWaypoints
@@ -80,15 +80,18 @@ class MavSimBridge(Node):
         self.timer = self.create_timer(control_timer_period, self.timer_callback)
 
     def airspeed_callback(self, msg):
+        # msg is in Pa
         # Uses max since mavsim is not prepared to handle negative values
         self.sensors.diff_pressure = max(msg.differential_pressure, 0.0)
 
     def barometer_callback(self, msg):
+        # msg is in Pa
         if self.initial_baro is None:
             self.initial_baro = msg.pressure
         self.sensors.abs_pressure = msg.pressure - self.initial_baro
 
     def gnss_callback(self, msg):
+        # msg is in m and m/s
         if self.initial_ecef is None:
             self.initial_ecef = msg.position
             self.ecef_ned_matrix = ecef_to_ned_matrix(self.initial_ecef)
@@ -101,6 +104,7 @@ class MavSimBridge(Node):
         self.sensors.gps_course = np.arctan2(ned_vel[1], ned_vel[0])
 
     def imu_callback(self, msg):
+        # msg is in rad/s and m/s^2
         self.sensors.gyro_x = msg.angular_velocity.x
         self.sensors.gyro_y = msg.angular_velocity.y
         self.sensors.gyro_z = msg.angular_velocity.z
@@ -109,6 +113,7 @@ class MavSimBridge(Node):
         self.sensors.accel_z = msg.linear_acceleration.z
 
     def mag_callback(self, msg):
+        # msg is in Tesla
         self.sensors.mag_x = msg.magnetic_field.x
         self.sensors.mag_y = msg.magnetic_field.y
         self.sensors.mag_z = msg.magnetic_field.z
