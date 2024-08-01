@@ -7,6 +7,8 @@ A ROS node (mavsim_bridge) then runs mavsim internally while exchanging sensor d
 
 To use this bridge, set up a ROS2 workspace with [rosflight_ros_pkgs](https://github.com/rosflight/rosflight_ros_pkgs) in the workspace. Run the setup_mavsim.sh script from the root directory of this repository. Build both packages, and run mavsim_bridge with `ros2 run mavsim_bridge mavsim_bridge` alongside rosflight_io.
 
+Alternatively, build and run the docker container with Docker Compose. This assumes you have a X11 compatible windowing server running on your computer. Modify the compose.yaml file as needed for your specific system.
+
 To adapt this bridge to different autopilots (like PX4), you would first need to make sure the other autopilot is setup to send sensor data and recieve actuator commands over the ROS network, with something like mavros or microROS.
 Then, modify the sensor subscriptions and command publisher in mavsim_bridge/mavsim_bridge.py to recieve data and send commands to whatever topics the autopilot is using.
 
