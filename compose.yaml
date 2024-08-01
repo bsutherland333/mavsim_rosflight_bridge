@@ -1,0 +1,29 @@
+services:
+  mavsim_rosflight_bridge:
+
+    # Build image from dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - ROS_DISTRO=humble  # Change for any version of ROS2
+
+    # Enable interactive shell, equivalent to -it for docker run commands
+    stdin_open: true
+    tty: true
+
+    volumes:
+      # Necessary for graphics
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority
+      # Necessary for USB devices
+      - /dev:/dev
+
+    environment:
+      # Necessary for graphics
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+
+    # Necessary for graphics and USB access
+    privileged: true
+
