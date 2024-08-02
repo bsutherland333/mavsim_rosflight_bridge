@@ -7,6 +7,10 @@ RUN apt update
 RUN apt upgrade -y
 RUN rosdep update
 
+# Install mavsim dependencies not avaliable through rosdep
+RUN apt install python3-pip -y
+RUN pip3 install pyopengl
+
 # Clone ROSflight repo
 WORKDIR /rosflight_ws/src
 RUN git clone --recursive https://github.com/rosflight/rosflight_ros_pkgs.git

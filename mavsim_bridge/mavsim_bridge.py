@@ -22,6 +22,8 @@ from planners.path_follower import PathFollower
 from planners.path_manager import PathManager
 from message_types.msg_waypoints import MsgWaypoints
 from message_types.msg_sensors import MsgSensors
+from message_types.msg_autopilot import MsgAutopilot
+from viewers.view_manager import ViewManager
 
 
 def ecef_to_ned_matrix(ecef):
@@ -50,12 +52,15 @@ class MavSimBridge(Node):
         self.initial_baro = None
         self.initial_ecef = None
         self.ecef_ned_matrix = None
+        self.start_time = self.get_clock().now().to_msg()
+        self.start_time = self.start_time.sec + self.start_time.nanosec / 1e9
 
         # initialize elements of the architecture
         self.autopilot = Autopilot(control_timer_period)
         self.observer = Observer(control_timer_period)
         self.path_follower = PathFollower()
         self.path_manager = PathManager()
+        self.viewers = ViewManager(data=True)
 
         # waypoint definition
         self.waypoints = MsgWaypoints()
@@ -124,6 +129,10 @@ class MavSimBridge(Node):
         path = self.path_manager.update(self.waypoints, estimated_state, PLAN.R_min)
         autopilot_commands = self.path_follower.update(path, estimated_state)
         delta, _ = self.autopilot.update(autopilot_commands, estimated_state)
+
+        curr_time = self.get_clock().now().to_msg()
+        runtime = curr_time.sec + curr_time.nanosec / 1e9 - self.start_time
+        self.viewers.update(runtime, estimated_state=estimated_state)
 
         # Publish delta commands
         msg = Command()

@@ -7,8 +7,16 @@
   <maintainer email="bsuther2@byu.edu">Brandon Sutherland</maintainer>
   <license>BSD-3-Clause</license>
 
-  <depend>geometry_msgs</depend>
+  # mavsim dependencies
   <depend>python3-numpy</depend>
+  <depend>python3-scipy</depend>
+  <depend>python3-matplotlib</depend>
+  <depend>python3-pyqtgraph</depend>
+  <depend>python3-pyqt5</depend>
+  <depend>python3-pynput</depend>
+  <depend>python3-numpy-stl</depend>
+
+  <depend>geometry_msgs</depend>
   <depend>python3-pyproj</depend>
   <depend>rosflight_msgs</depend>
   <depend>sensor_msgs</depend>
