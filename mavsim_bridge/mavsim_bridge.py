@@ -20,9 +20,10 @@ from controllers.autopilot import Autopilot
 from estimators.observer_full import Observer
 from planners.path_follower import PathFollower
 from planners.path_manager import PathManager
-from message_types.msg_waypoints import MsgWaypoints
-from message_types.msg_sensors import MsgSensors
 from message_types.msg_autopilot import MsgAutopilot
+from message_types.msg_sensors import MsgSensors
+from message_types.msg_state import MsgState
+from message_types.msg_waypoints import MsgWaypoints
 from viewers.view_manager import ViewManager
 
 
@@ -130,9 +131,18 @@ class MavSimBridge(Node):
         autopilot_commands = self.path_follower.update(path, estimated_state)
         delta, _ = self.autopilot.update(autopilot_commands, estimated_state)
 
+        # Convert the autopilot command to a state message
+        commanded_state = MsgState()
+        commanded_state.Va = autopilot_commands.airspeed_command
+        commanded_state.chi = autopilot_commands.course_command
+        commanded_state.altitude = autopilot_commands.altitude_command
+        commanded_state.theta = autopilot_commands.climb_rate_command
+        commanded_state.phi = autopilot_commands.roll_command
+
+        # Plot the estimated state, true state, and commanded state
         curr_time = self.get_clock().now().to_msg()
         runtime = curr_time.sec + curr_time.nanosec / 1e9 - self.start_time
-        self.viewers.update(runtime, estimated_state=estimated_state)
+        self.viewers.update(runtime, estimated_state=estimated_state, commanded_state=commanded_state, delta=delta)
 
         # Publish delta commands
         msg = Command()
