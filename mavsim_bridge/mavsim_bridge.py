@@ -4,10 +4,12 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(current_dir, 'mavsim/mavsim_python'))
 
 from pyproj import Proj, transform
+from scipy.spatial.transform import Rotation as R
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
+from nav_msgs.msg import Odometry
 from rosflight_msgs.msg import Airspeed
 from rosflight_msgs.msg import Barometer
 from rosflight_msgs.msg import Command
@@ -55,6 +57,7 @@ class MavSimBridge(Node):
         self.ecef_ned_matrix = None
         self.start_time = self.get_clock().now().to_msg()
         self.start_time = self.start_time.sec + self.start_time.nanosec / 1e9
+        self.truth_msg = None
 
         # initialize elements of the architecture
         self.autopilot = Autopilot(control_timer_period)
@@ -75,12 +78,13 @@ class MavSimBridge(Node):
         # Create publisher for delta commands
         self.delta_pub = self.create_publisher(Command, '/command', 1)
 
-        # Create sensor subscriptions
+        # Create subscriptions
         self.airspeed_sub = self.create_subscription(Airspeed, '/airspeed', self.airspeed_callback, 1)
         self.barometer_sub = self.create_subscription(Barometer, '/barometer', self.barometer_callback, 1)
         self.gnss_sub = self.create_subscription(GNSS, '/gnss', self.gnss_callback, 1)
         self.imu_sub = self.create_subscription(Imu, '/imu/data', self.imu_callback, 1)
         self.mag_sub = self.create_subscription(MagneticField, '/magnetometer', self.mag_callback, 1)
+        self.truth_sub = self.create_subscription(Odometry, '/fixedwing/truth/NED', self.truth_callback, 1)
 
         # Create timer for control loop
         self.timer = self.create_timer(control_timer_period, self.timer_callback)
@@ -124,6 +128,9 @@ class MavSimBridge(Node):
         self.sensors.mag_y = msg.magnetic_field.y
         self.sensors.mag_z = msg.magnetic_field.z
 
+    def truth_callback(self, msg):
+        self.truth_msg = msg
+
     def timer_callback(self):
         # Get next set of commands
         estimated_state = self.observer.update(self.sensors)
@@ -139,10 +146,43 @@ class MavSimBridge(Node):
         commanded_state.theta = autopilot_commands.climb_rate_command
         commanded_state.phi = autopilot_commands.roll_command
 
+        # Convert the truth message to a state message
+        true_state = MsgState()
+        if self.truth_msg is not None:
+            # Position
+            true_state.north = self.truth_msg.pose.pose.position.x
+            true_state.east = self.truth_msg.pose.pose.position.y
+            true_state.altitude = -self.truth_msg.pose.pose.position.z
+
+            # Attitude
+            truth_quat = self.truth_msg.pose.pose.orientation
+            truth_quat = [truth_quat.x, truth_quat.y, truth_quat.z, truth_quat.w]
+            truth_r = R.from_quat(truth_quat)
+            truth_xyz = truth_r.as_euler('xyz', degrees=False)
+            true_state.phi = truth_xyz[0]
+            true_state.theta = truth_xyz[1]
+            true_state.psi = truth_xyz[2]
+            true_state.chi = truth_xyz[2]  # Assumes no wind
+
+            # Velocity
+            # Assumes no wind
+            true_state.Va = np.linalg.norm([self.truth_msg.twist.twist.linear.x,
+                                            self.truth_msg.twist.twist.linear.y,
+                                            self.truth_msg.twist.twist.linear.z])
+
+            # Angular rates
+            true_state.p = self.truth_msg.twist.twist.angular.x
+            true_state.q = self.truth_msg.twist.twist.angular.y
+            true_state.r = self.truth_msg.twist.twist.angular.z
+
         # Plot the estimated state, true state, and commanded state
         curr_time = self.get_clock().now().to_msg()
         runtime = curr_time.sec + curr_time.nanosec / 1e9 - self.start_time
-        self.viewers.update(runtime, estimated_state=estimated_state, commanded_state=commanded_state, delta=delta)
+        self.viewers.update(runtime,
+                            true_state=true_state,
+                            estimated_state=estimated_state,
+                            commanded_state=commanded_state,
+                            delta=delta)
 
         # Publish delta commands
         msg = Command()
