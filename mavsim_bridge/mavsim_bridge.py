@@ -189,8 +189,8 @@ class MavSimBridge(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.mode = Command.MODE_PASS_THROUGH
         msg.x = delta.aileron
-        msg.y = delta.elevator
-        msg.z = delta.rudder
+        msg.y = -delta.elevator
+        msg.z = -delta.rudder
         msg.f = delta.throttle
         self.delta_pub.publish(msg)
 
