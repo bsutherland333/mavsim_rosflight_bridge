@@ -19,7 +19,7 @@ from sensor_msgs.msg import MagneticField
 
 import parameters.planner_parameters as PLAN
 from controllers.autopilot import Autopilot
-from estimators.observer_full import Observer
+from estimators.observer import Observer
 from planners.path_follower import PathFollower
 from planners.path_manager import PathManager
 from message_types.msg_autopilot import MsgAutopilot
@@ -80,7 +80,7 @@ class MavSimBridge(Node):
 
         # Create subscriptions
         self.airspeed_sub = self.create_subscription(Airspeed, '/airspeed', self.airspeed_callback, 1)
-        self.barometer_sub = self.create_subscription(Barometer, '/barometer', self.barometer_callback, 1)
+        self.barometer_sub = self.create_subscription(Barometer, '/baro', self.barometer_callback, 1)
         self.gnss_sub = self.create_subscription(GNSS, '/gnss', self.gnss_callback, 1)
         self.imu_sub = self.create_subscription(Imu, '/imu/data', self.imu_callback, 1)
         self.mag_sub = self.create_subscription(MagneticField, '/magnetometer', self.mag_callback, 1)
@@ -98,7 +98,7 @@ class MavSimBridge(Node):
         # msg is in Pa
         if self.initial_baro is None:
             self.initial_baro = msg.pressure
-        self.sensors.abs_pressure = msg.pressure - self.initial_baro
+        self.sensors.abs_pressure = self.initial_baro - msg.pressure
 
     def gnss_callback(self, msg):
         # msg is in m and m/s
